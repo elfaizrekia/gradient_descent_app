@@ -145,7 +145,7 @@ def preprocess_data(df, target_column, task_type):
         else:
             df_processed[col].fillna(df_processed[col].median(), inplace=True)
     
-    # Encoder les variables catégorielles
+    # Encoder les variables catégorielles (sauf la variable cible)
     label_encoders = {}
     for col in df_processed.columns:
         if df_processed[col].dtype == 'object' and col != target_column:
@@ -153,11 +153,22 @@ def preprocess_data(df, target_column, task_type):
             df_processed[col] = le.fit_transform(df_processed[col].astype(str))
             label_encoders[col] = le
     
-    # Traiter la variable cible pour la classification
-    if task_type == 'classification' and df_processed[target_column].dtype == 'object':
+    # Traiter la variable cible
+    if df_processed[target_column].dtype == 'object':
+        # Pour les variables catégorielles, toujours encoder
         le_target = LabelEncoder()
-        df_processed[target_column] = le_target.fit_transform(df_processed[target_column])
+        df_processed[target_column] = le_target.fit_transform(df_processed[target_column].astype(str))
         label_encoders['target'] = le_target
+    else:
+        # Pour les variables numériques, s'assurer qu'elles sont bien numériques
+        df_processed[target_column] = pd.to_numeric(df_processed[target_column], errors='coerce')
+        # Remplacer les NaN par la médiane
+        df_processed[target_column].fillna(df_processed[target_column].median(), inplace=True)
+    
+    # Convertir toutes les colonnes en float pour éviter les erreurs de type
+    for col in df_processed.columns:
+        df_processed[col] = pd.to_numeric(df_processed[col], errors='coerce')
+        df_processed[col].fillna(df_processed[col].median(), inplace=True)
     
     return df_processed, label_encoders
 
@@ -314,9 +325,26 @@ def main():
                     with col1:
                         st.subheader("Avant prétraitement")
                         st.dataframe(df_selected.head(), use_container_width=True)
+                        st.write("**Types de données:**")
+                        st.write(df_selected.dtypes)
                     with col2:
                         st.subheader("Après prétraitement")
                         st.dataframe(st.session_state.df_processed.head(), use_container_width=True)
+                        st.write("**Types de données:**")
+                        st.write(st.session_state.df_processed.dtypes)
+                        
+                        # Vérifications
+                        if st.session_state.df_processed.isnull().sum().sum() > 0:
+                            st.warning("⚠️ Il reste des valeurs manquantes après prétraitement")
+                        else:
+                            st.success("✅ Aucune valeur manquante")
+                        
+                        # Vérifier les types numériques
+                        non_numeric = st.session_state.df_processed.select_dtypes(exclude=[np.number]).columns
+                        if len(non_numeric) > 0:
+                            st.warning(f"⚠️ Colonnes non-numériques détectées: {list(non_numeric)}")
+                        else:
+                            st.success("✅ Toutes les colonnes sont numériques")
                 else:
                     st.warning("⚠️ Veuillez sélectionner au moins une variable explicative")
         else:
@@ -348,37 +376,68 @@ def main():
             
             if st.button("🚀 Entraîner le modèle", type="primary"):
                 with st.spinner("Entraînement en cours..."):
-                    # Préparer les données
-                    X = st.session_state.df_processed[st.session_state.feature_columns].values
-                    y = st.session_state.df_processed[st.session_state.target_column].values
-                    
-                    # Normalisation des features
-                    scaler = StandardScaler()
-                    X_scaled = scaler.fit_transform(X)
-                    
-                    # Division train/test
-                    X_train, X_test, y_train, y_test = train_test_split(
-                        X_scaled, y, test_size=test_size, random_state=42
-                    )
-                    
-                    # Créer et entraîner le modèle
-                    model = GradientDescent(
-                        learning_rate=learning_rate,
-                        max_iterations=max_iterations,
-                        task_type=st.session_state.task_type
-                    )
-                    
-                    model.fit(X_train, y_train)
-                    
-                    # Sauvegarder dans la session
-                    st.session_state.model = model
-                    st.session_state.X_train = X_train
-                    st.session_state.X_test = X_test
-                    st.session_state.y_train = y_train
-                    st.session_state.y_test = y_test
-                    st.session_state.scaler = scaler
-                
-                st.success("✅ Modèle entraîné avec succès!")
+                    try:
+                        # Préparer les données
+                        X = st.session_state.df_processed[st.session_state.feature_columns].values
+                        y = st.session_state.df_processed[st.session_state.target_column].values
+                        
+                        # Vérifier que les données sont numériques
+                        if not np.issubdtype(X.dtype, np.number):
+                            st.error("❌ Erreur: Les variables explicatives contiennent des valeurs non-numériques")
+                            st.stop()
+                        
+                        if not np.issubdtype(y.dtype, np.number):
+                            st.error("❌ Erreur: La variable cible contient des valeurs non-numériques")
+                            st.stop()
+                        
+                        # Vérifier les valeurs manquantes
+                        if np.isnan(X).any():
+                            st.error("❌ Erreur: Les variables explicatives contiennent des valeurs manquantes")
+                            st.stop()
+                        
+                        if np.isnan(y).any():
+                            st.error("❌ Erreur: La variable cible contient des valeurs manquantes")
+                            st.stop()
+                        
+                        # Normalisation des features
+                        scaler = StandardScaler()
+                        X_scaled = scaler.fit_transform(X)
+                        
+                        # Division train/test
+                        X_train, X_test, y_train, y_test = train_test_split(
+                            X_scaled, y, test_size=test_size, random_state=42
+                        )
+                        
+                        # Créer et entraîner le modèle
+                        model = GradientDescent(
+                            learning_rate=learning_rate,
+                            max_iterations=max_iterations,
+                            task_type=st.session_state.task_type
+                        )
+                        
+                        model.fit(X_train, y_train)
+                        
+                        # Sauvegarder dans la session
+                        st.session_state.model = model
+                        st.session_state.X_train = X_train
+                        st.session_state.X_test = X_test
+                        st.session_state.y_train = y_train
+                        st.session_state.y_test = y_test
+                        st.session_state.scaler = scaler
+                        
+                        st.success("✅ Modèle entraîné avec succès!")
+                        
+                    except Exception as e:
+                        st.error(f"❌ Erreur lors de l'entraînement: {str(e)}")
+                        st.write("**Détails de l'erreur:**")
+                        st.write(f"- Type de X: {type(X[0][0]) if len(X) > 0 and len(X[0]) > 0 else 'N/A'}")
+                        st.write(f"- Type de y: {type(y[0]) if len(y) > 0 else 'N/A'}")
+                        st.write(f"- Shape de X: {X.shape}")
+                        st.write(f"- Shape de y: {y.shape}")
+                        st.write("**Vérifiez que:**")
+                        st.write("1. Toutes les colonnes sélectionnées sont numériques")
+                        st.write("2. La variable cible est appropriée pour le type de tâche")
+                        st.write("3. Le prétraitement a été effectué correctement")
         else:
             st.info("🔧 Veuillez d'abord effectuer le prétraitement des données")
     

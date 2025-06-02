@@ -14,7 +14,7 @@ import requests
 
 # Configuration de la page
 st.set_page_config(
-    page_title="Gradient Descent ML Studio",
+    page_title="Gradient Descent ML",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -23,33 +23,88 @@ st.set_page_config(
 # CSS personnalisé pour le design
 st.markdown("""
 <style>
-    .main-header {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 10px;
-        color: white;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .metric-container {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 2px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #f0f2f6;
-        border-radius: 10px 10px 0 0;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #667eea;
-        color: white;
-    }
+/* Fonts and body reset */
+body, .stApp {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #0d1b2a;
+    color: #e0e1dd;
+}
+
+/* Header */
+.main-header {
+    background: linear-gradient(90deg, #0d1b2a 0%, #1b263b 100%);
+    padding: 2rem;
+    border-radius: 10px;
+    color: #e0e1dd;
+    text-align: center;
+    margin: 2rem 0 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Metric Cards */
+.metric-container {
+    background: linear-gradient(135deg, #415a77 0%, #778da9 100%);
+    padding: 1rem;
+    border-radius: 10px;
+    margin: 0.5rem 0;
+    color: #e0e1dd;
+    transition: all 0.3s ease-in-out;
+}
+.metric-container:hover {
+    background: #1b263b;
+    transform: scale(1.02);
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 2px;
+}
+.stTabs [data-baseweb="tab"] {
+    background-color: #778da9;
+    border-radius: 10px 10px 0 0;
+    color: #0d1b2a;
+    transition: background-color 0.3s ease;
+}
+.stTabs [data-baseweb="tab"]:hover {
+    background-color: #415a77;
+    color: #e0e1dd;
+}
+.stTabs [aria-selected="true"] {
+    background-color: #1b263b;
+    color: #e0e1dd;
+}
+
+/* Primary button */
+button[kind="primary"] {
+    background-color: #415a77 !important;
+    color: #e0e1dd !important;
+    border-radius: 6px;
+    padding: 0.6rem 1.2rem;
+    font-weight: bold;
+    border: none;
+    transition: background-color 0.3s ease-in-out;
+}
+button[kind="primary"]:hover {
+    background-color: #1b263b !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 10px;
+}
+::-webkit-scrollbar-track {
+    background: #0d1b2a;
+}
+::-webkit-scrollbar-thumb {
+    background: #415a77;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #1b263b;
+}
 </style>
 """, unsafe_allow_html=True)
+
 
 class GradientDescent:
     def __init__(self, learning_rate=0.01, max_iterations=1000, task_type='regression'):
@@ -113,16 +168,9 @@ class GradientDescent:
         """Probabilités pour la classification"""
         linear_pred = np.dot(X, self.weights) + self.bias
         return self.sigmoid(linear_pred)
+ 
 
-def load_sample_datasets():
-    """Charger des datasets d'exemple"""
-    datasets = {
-        "Boston Housing (Régression)": "https://raw.githubusercontent.com/selva86/datasets/master/BostonHousing.csv",
-        "Iris (Classification)": "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv",
-        "Titanic (Classification)": "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv",
-        "Wine Quality (Régression)": "https://raw.githubusercontent.com/plotly/datasets/master/winequality-red.csv"
-    }
-    return datasets
+    
 
 def download_dataset(url):
     """Télécharger un dataset depuis une URL"""
@@ -227,7 +275,7 @@ def create_dashboard(df):
     st.dataframe(df.describe(), use_container_width=True)
 
 def main():
-    st.markdown('<div class="main-header"><h1>🧠 Gradient Descent ML Studio</h1><p>Application complète pour la régression et la classification</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"><h1>🧠 Gradient Descent ML </h1><p>Application  pour la régression et la classification</p></div>', unsafe_allow_html=True)
     
     # Sidebar pour les paramètres
     st.sidebar.markdown("## ⚙️ Configuration")
@@ -248,7 +296,7 @@ def main():
         
         # Option de chargement
         data_option = st.radio("Choisir une option:", 
-                              ["Télécharger un fichier", "Utiliser un dataset d'exemple", "URL personnalisée"])
+                              ["Télécharger un fichier",  "URL personnalisée"])
         
         if data_option == "Télécharger un fichier":
             uploaded_file = st.file_uploader("Choisir un fichier CSV", type=['csv'])
@@ -260,16 +308,6 @@ def main():
                 except Exception as e:
                     st.error(f"❌ Erreur lors du chargement: {e}")
         
-        elif data_option == "Utiliser un dataset d'exemple":
-            datasets = load_sample_datasets()
-            selected_dataset = st.selectbox("Choisir un dataset:", list(datasets.keys()))
-            
-            if st.button("Charger le dataset"):
-                with st.spinner("Téléchargement en cours..."):
-                    st.session_state.df = download_dataset(datasets[selected_dataset])
-                    if st.session_state.df is not None:
-                        st.success(f"✅ Dataset '{selected_dataset}' chargé avec succès!")
-                        st.dataframe(st.session_state.df.head(), use_container_width=True)
         
         else:  # URL personnalisée
             url = st.text_input("Entrer l'URL du dataset CSV:")
@@ -351,7 +389,7 @@ def main():
             st.info("📁 Veuillez d'abord charger un dataset")
     
     with tab4:
-        st.header("🤖 Configuration et entraînement du modèle")
+        st.header("🧠 Configuration et entraînement du modèle")
         
         if st.session_state.df_processed is not None:
             # Paramètres du modèle dans la sidebar
@@ -565,7 +603,7 @@ def main():
                 st.write(f"- Coût final: {model.costs[-1]:.4f}")
         
         else:
-            st.info("🤖 Veuillez d'abord entraîner un modèle")
+            st.info("🧠 Veuillez d'abord entraîner un modèle")
 
 if __name__ == "__main__":
     main()

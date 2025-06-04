@@ -588,10 +588,10 @@ def main():
             col1, col2 = st.columns(2)
             
             with col1:
-                st.write("**Poids du modèle:**")
+                st.write("**Coefficients du modèle:**")
                 weights_df = pd.DataFrame({
                     'Feature': st.session_state.feature_columns,
-                    'Poids': model.weights
+                    'Coefficients': model.weights
                 })
                 st.dataframe(weights_df, use_container_width=True)
             
